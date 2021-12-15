@@ -3,6 +3,8 @@ const routes = express.Router();
 
 const UserController = require('./controllers/UserController')
 
-routes.post('/users', UserController.store)
+const ValidationsUser = require('./validations/validationUser')
+
+routes.post('/users', ValidationsUser.withPassword ,UserController.store)
 
 module.exports = routes

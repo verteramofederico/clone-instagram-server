@@ -1,8 +1,11 @@
 const Sequelize = require("sequelize");
 const { validationResult } = require("express-validator");
-const db = require('../database/models');
+const jwt = require("jsonwebtoken");
+const db = require('../database/models')
 
 let User = db.User // model
+
+const passwordHash = require('./utils/passwordHash')
 
 module.exports = {
     async store(req, res) {
@@ -23,14 +26,27 @@ module.exports = {
             if (user.username === username)
                 return res.status(400).json({ message: "Este usuario ya esta en uso" });
         }
+
+        // hash passwordHash
+        const passwordHashed = await passwordHash(password)
         
         user = await User.create({
             name, 
             email, 
             username, 
-            password
+            password: passwordHashed
         })
 
-        res.json({user})
+        // jwt
+        const payload = { id: user.id, username: user.username };
+        jwt.sign(
+            payload,
+            process.env.SIGNATURE_TOKEN,
+            { expiresIn: 86400 },
+            (error, token) => {
+                if (error) {throw error};
+                return res.json({ token });
+            }
+        )
     }
 }

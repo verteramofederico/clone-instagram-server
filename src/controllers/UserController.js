@@ -6,8 +6,22 @@ const db = require('../database/models')
 let User = db.User // model
 
 const passwordHash = require('./utils/passwordHash')
+const passwordCompare = require('./utils/passwordCompare')
 
 module.exports = {
+    async show (req, res) {
+        const {username} = req.params
+
+        const user = await User.findOne({ where: { username },
+            attributes: {
+                exclude: ["password", "updatedAt"]
+                }
+            })
+    
+        if (!user) {return res.status(404).send({message: 'Usuario no encontrado'})}
+
+        return res.json(user)
+    },
     async store(req, res) {
         const {name, email, username, password} = req.body
 
@@ -48,5 +62,41 @@ module.exports = {
                 return res.json({ token });
             }
         )
+    },
+    async update (req, res) {
+        const { name, email, username, phone, bio} = req.body;
+
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
+        }
+
+        await User.update({ name, email, username, phone, bio}, 
+            {where: {id: req.userId}})
+        
+        return res.json({ message: 'actualizado ok' });
+    },
+    async updatePassword(req, res) {
+        const { password_old, password, password_confirm } = req.body;
+    
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+        }
+    
+        const user = await User.findByPk(req.userId);
+    
+        if (!(await passwordCompare(password_old, user.password)))
+        return res.status(400).json({ message: "No coincide la contraseña" })
+
+        if (password !== password_confirm)
+        return res.status(400).json({ message: "No coinciden el password ingresado" }) 
+    
+        // hash passwordHash
+        const passwordHashed = await passwordHash(password)
+
+        await User.update({password: passwordHashed }, {where: {id: req.userId}})
+
+        return res.json({ message: "Password actualizado" });
     }
 }

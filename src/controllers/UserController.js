@@ -3,10 +3,15 @@ const { validationResult } = require("express-validator");
 const jwt = require("jsonwebtoken");
 const db = require('../database/models')
 
+const fs = require('fs')
+const path = require('path')
+const { promisify } = require('util')
+
+
 let User = db.User // model
 
-const passwordHash = require('./utils/passwordHash')
-const passwordCompare = require('./utils/passwordCompare')
+const passwordHash = require('../utils/passwordHash')
+const passwordCompare = require('../utils/passwordCompare')
 
 module.exports = {
     async show (req, res) {
@@ -98,5 +103,23 @@ module.exports = {
         await User.update({password: passwordHashed }, {where: {id: req.userId}})
 
         return res.json({ message: "Password actualizado" });
-    }
+    },
+    async updateAvatar(req, res) {
+        const key = req.file.filename
+    
+        promisify(fs.unlink)(
+        path.resolve(__dirname, "..", "..", "tmp", "uploads", req.query.key)
+        ) 
+    
+        const url = `${process.env.API_URL}/files/${key}`;
+        await User.update(
+        {
+            key,
+            avatar_url: url
+        },
+        { where: { id: req.userId } }
+        );
+        console.log(url, "post await")
+        return res.json({ avatar_url: url } );
+    },
 }
